@@ -11,6 +11,7 @@ class Settings:
     TTS_PROVIDER: str = os.getenv("TTS_PROVIDER", "clova")
     CLOVA_API_KEY_ID: str = os.getenv("CLOVA_API_KEY_ID", "")
     CLOVA_API_KEY: str = os.getenv("CLOVA_API_KEY", "")
+    CHAT_MODEL: str = os.getenv("CHAT_MODEL", "gpt-4o-mini")
 
 settings = Settings()
 
