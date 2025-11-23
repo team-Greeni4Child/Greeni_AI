@@ -33,9 +33,8 @@ class TTSRequest(BaseModel):
     voice: Optional[str] = Field(None, description="Voice id/name")
     speed: confloat(ge=0.5, le=2.0) = Field(1.0, description="Playback speed multiplier")
 
-#class TTSResponse(BaseModel):
-#    audio_url: HttpUrl
-#    durationSec: Optional[confloat(gt=0.0)] = None
+class TTSResponse(BaseModel):
+    audio_url: HttpUrl
 
 
 # ===== Game (animal / twentyq) =====

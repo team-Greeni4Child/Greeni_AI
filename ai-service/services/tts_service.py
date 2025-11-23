@@ -18,14 +18,13 @@ _session.mount(
     ),
 )
 
-# 클로바 api key 불러오기
+# 클로바 api key
 def _require_keys():
     if not settings.CLOVA_API_KEY_ID or not settings.CLOVA_API_KEY:
         raise HTTPException(status_code=500, detail="CLOVA API key not configured")
 
-# speed 
+# speed 매핑
 def _map_speed(speed: float) -> int:
-    # 0.5~2.0  →  -5~+5 근사
     return max(-5, min(5, round((speed - 1.0) * 5)))
 
 # api 호출 및 음성 생성
@@ -34,7 +33,7 @@ def _call_clova_tts(text: str, speaker: str, speed_opt: int, pitch: int) -> byte
         "speaker": speaker,      # 기본: "ngaram"
         "text": text,
         "format": "mp3",
-        "pitch": str(pitch),     # 요청: 1
+        "pitch": 1,              # 고정
         "volume": "0",
         "speed": str(speed_opt), # 항상 명시
     }
@@ -45,7 +44,6 @@ def _call_clova_tts(text: str, speaker: str, speed_opt: int, pitch: int) -> byte
     }
     r = _session.post(CLOVA_TTS_URL, headers=headers, data=form, timeout=20)
     if r.status_code != 200:
-        # 사용자 에러메시지는 짧게, 상세는 로그에서 처리 권장
         try:
             msg = r.json()
         except Exception:

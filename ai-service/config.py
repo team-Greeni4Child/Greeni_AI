@@ -12,6 +12,7 @@ class Settings:
     CLOVA_API_KEY_ID: str = os.getenv("CLOVA_API_KEY_ID", "")
     CLOVA_API_KEY: str = os.getenv("CLOVA_API_KEY", "")
     CHAT_MODEL: str = os.getenv("CHAT_MODEL", "gpt-4o-mini")
+    BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
 
 settings = Settings()
 

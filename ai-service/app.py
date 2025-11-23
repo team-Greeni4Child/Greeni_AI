@@ -22,6 +22,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.staticfiles import StaticFiles
+# 정적 파일(storage) mount
+app.mount("/storage", StaticFiles(directory="storage"), name="storage")
+
 # 라우터 연결
 app.include_router(stt.router, prefix="/stt", tags=["stt"])
 app.include_router(tts.router, prefix="/tts", tags=["tts"])
