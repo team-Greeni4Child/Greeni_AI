@@ -1,5 +1,5 @@
 from fastapi import APIRouter, File, UploadFile
-from schemas import STTResponse
+from schemas.stt import STTResponse
 from services import stt_service
 
 router = APIRouter()

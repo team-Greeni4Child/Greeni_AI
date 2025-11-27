@@ -33,7 +33,7 @@ app.add_middleware(
 
 # TTS 출력 경로
 app.mount(
-    "/static/tts",
+    "/storage/tts",
     StaticFiles(directory=str(settings.TTS_DIR)),
     name="tts-files",
 )

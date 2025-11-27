@@ -1,6 +1,6 @@
 from fastapi import Query
 from fastapi import APIRouter, HTTPException
-from schemas import TTSRequest, TTSResponse
+from schemas.tts import TTSRequest, TTSResponse
 from services import tts_service
 from storage.files import save_tts_file, delete_after_delay
 from config import settings
@@ -21,7 +21,7 @@ async def speak(body: TTSRequest):
         speed=body.speed,
     )
     filepath = save_tts_file(audio_bytes)
-    asyncio.create_task(delete_after_delay(filepath, delay=30))
+    asyncio.create_task(delete_after_delay(filepath, delay=300))
     audio_url = f"{BASE_URL}/storage/tts/{filepath.name}"
 
     return TTSResponse(audio_url=audio_url)

@@ -23,7 +23,7 @@ def save_tts_file(audio_bytes: bytes) -> Path:
     return filepath
 
 
-async def delete_after_delay(filepath: Path, delay: int = 30):
+async def delete_after_delay(filepath: Path, delay: int = 300):
     """파일을 일정 시간 뒤 삭제"""
     await asyncio.sleep(delay)
     if filepath.exists():
