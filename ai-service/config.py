@@ -8,6 +8,7 @@ from dataclasses import dataclass
 class Settings:
     APP_NAME: str = os.getenv("APP_NAME", "Greeni")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    HF_API_KEY: str = os.getenv("HF_API_KEY","")
     TTS_PROVIDER: str = os.getenv("TTS_PROVIDER", "clova")
     CLOVA_API_KEY_ID: str = os.getenv("CLOVA_API_KEY_ID", "")
     CLOVA_API_KEY: str = os.getenv("CLOVA_API_KEY", "")
