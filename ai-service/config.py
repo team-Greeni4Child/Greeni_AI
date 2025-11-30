@@ -19,6 +19,7 @@ class Settings:
     TTS_DIR: Path = STORAGE_DIR / "tts"
 
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    HF_API_KEY: str = os.getenv("HF_API_KEY","")
     TTS_PROVIDER: str = os.getenv("TTS_PROVIDER", "clova")
     CLOVA_API_KEY_ID: str = os.getenv("CLOVA_API_KEY_ID", "")
     CLOVA_API_KEY: str = os.getenv("CLOVA_API_KEY", "")
