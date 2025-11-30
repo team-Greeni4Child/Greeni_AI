@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Path, Query
 from typing import Optional
-from schemas import DiaryTurnRequest, DiaryTurnResponse, DiaryComposeResponse
+from schemas.diary import DiaryTurnRequest, DiaryTurnResponse, DiaryComposeResponse
 from services import diary_service
 
 router = APIRouter()
