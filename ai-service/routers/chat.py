@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from services.roleplay_service import RoleplayRequest, reply
+from schemas.roleplay import RoleplayRequest
+from services.roleplay_service import reply
 
 router = APIRouter()
 

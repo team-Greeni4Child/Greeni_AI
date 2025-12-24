@@ -78,7 +78,6 @@ def check_fiveq(utterance: str, answer: str) -> Dict:
 
     result = completion.choices[0].message.content.strip()
 
-    # GPT 출력이 "True"/"False"라고 가정
     correct = result.lower() == "true"
 
     return {"correct": correct}

@@ -1,14 +1,16 @@
 from typing import Optional
-from pydantic import BaseModel, Field, conint
+from pydantic import BaseModel, Field
+from typing import Optional, Sequence, Literal
 
+
+RoleType = Literal["shop", "teacher", "friend"]
 
 class RoleplayRequest(BaseModel):
-    sid: str = Field(..., description="Session/child id")
-    text: str = Field(..., description="Child utterance")
-    withMemory: bool = Field(True)
-    topK: conint(ge=1, le=20) = Field(5)
-    recentDays: Optional[conint(ge=1, le=365)] = Field(90)
-    style: Optional[str] = Field(None, description="Optional system style")
+    role: RoleType = Field(..., description='"shop"|"teacher"|"friend"')
+    user_text: str = Field(..., min_length=1)
+    temperature: float = 0.7
+    top_p: float = 1.0
+    max_tokens: int = 256
 
 
 class RoleplayResponse(BaseModel):
