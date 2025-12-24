@@ -1,33 +1,14 @@
 # services/roleplay_service.py
 from __future__ import annotations
 
-from typing import Literal, Optional, Sequence
-
+from typing import Literal, Optional
 from openai import OpenAI
-from pydantic import BaseModel, Field
 from config import settings
 
-# 내가 추가한 부분
-import requests
+from schemas.roleplay import RoleplayRequest
 
 
 RoleType = Literal["shop", "teacher", "friend"]
-
-
-class RoleplayRequest(BaseModel):
-    role: RoleType = Field(..., description='"shop"|"teacher"|"friend"')
-    user_text: str = Field(..., min_length=1)
-    # 선택 파라미터
-    system_hint: Optional[str] = Field(
-        None, description="추가 지침(말투/금지어/학습목표 등)"
-    )
-    history: Optional[Sequence[dict]] = Field(
-        None,
-        description='기존 대화 [{"role":"user"|"assistant"|"system","content":"..."}]',
-    )
-    temperature: float = 0.7
-    top_p: float = 1.0
-    max_tokens: int = 256
 
 
 def _system_base() -> str:
@@ -87,78 +68,16 @@ def _role_instruction(role: RoleType) -> str:
 
 def _build_messages(req: RoleplayRequest) -> list[dict]:
     sys_prompt = _system_base() + " " + _role_instruction(req.role)
-    if req.system_hint:
-        sys_prompt += " 추가 지침: " + req.system_hint.strip()
-
     messages: list[dict] = [{"role": "system", "content": sys_prompt}]
-
-    # 과거 대화 일부가 있으면 이어붙이기 (토큰 초과 방지를 위해 상단 몇 개/하단 몇 개만 사용하는 등 슬라이싱은 TODO)
-    if req.history:
-        for m in req.history:
-            if m.get("role") in {"user", "assistant", "system"} and m.get("content"):
-                messages.append({"role": m["role"], "content": str(m["content"])})
-
-    # 최신 사용자 입력
     messages.append({"role": "user", "content": req.user_text})
     return messages
 
 
-# 내가 추가한 부분
-
-def _polyglot_tone_hint(role: RoleType) -> str:
-    if role == "shop":
-        return (
-            "말투는 시장 상인처럼 호탕하고 쾌활하게, 하지만 어린이가 듣기 편하도록 부드럽게 다듬어 주세요. "
-            "너무 과장되면 안 되고, 말투만 살짝 시장 상인 느낌으로 자연스럽게 조정하세요. "
-        )
-    if role == "teacher":
-        return (
-            "말투는 따뜻하고 다정한 선생님처럼 차분하고 안정감 있게 다듬어 주세요. "
-            "과한 감탄이나 감정표현 없이, 어른스럽고 부드러운 말투로 자연스럽게 조정하세요. "
-        )
-    if role == "friend":
-        return (
-            "말투는 발랄하고 귀여운 친구처럼 경쾌하게, 하지만 유치하지 않게 자연스럽게 다듬어 주세요. "
-            "너무 과장되지 않은 자연스러운 친구 말투를 유지하세요. "
-        )
-
-def refine_with_polyglot_kor(text: str, role: RoleType) -> str:
-    url = "https://router.huggingface.co/models/monologg/polyglot-ko-1.3b"
-    headers = {"Authorization": f"Bearer {settings.HF_API_KEY}"}
-
-    tone_hint = _polyglot_tone_hint(role)
-
-    prompt = (
-        "다음 문장의 말투와 단어 선택만 아주 조금 자연스럽게 다듬어 주세요. "
-        "문장의 의미, 규칙, 역할에 따른 말투(반말/존댓말/교정 규칙)는 절대 바꾸지 마세요."
-        "문장을 재창작하지 말고 표현만 부드럽게 바꿔주세요."
-        f"{tone_hint}"
-        f"\n\n문장: {text}\n\n출력: "
-    )
-
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 128,
-            "temperature": 0.7,
-            "top_p": 0.9
-        }
-    }
-    res = requests.post(url, headers=headers, json=payload)
-    if res.status_code == 200:
-        output = res.json()
-        return output[0]["generated_text"]
-    else:
-        print(res.status_code, res.text)
-        return text
-
-# 내가 추가한 부분 (reply 함수 수정, return 수정)
-def reply(req: RoleplayRequest, sid: Optional[str] = None) -> dict:
+def reply(req: RoleplayRequest) -> dict:
     """
     반환 예:
     {
       "text": "...",
-      "model": "...",
       "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     }
     """
@@ -180,15 +99,11 @@ def reply(req: RoleplayRequest, sid: Optional[str] = None) -> dict:
     choice = resp.choices[0].message
     text = (choice.content or "").strip()
 
-    refined_text = refine_with_polyglot_kor(text, req.role)
-
     return {
-        "text": refined_text,
-        "model": f"{resp.model} + polyglot-ko-1.3b",
+        "text": text,
         "usage": {
             "prompt_tokens": getattr(resp.usage, "prompt_tokens", None),
             "completion_tokens": getattr(resp.usage, "completion_tokens", None),
             "total_tokens": getattr(resp.usage, "total_tokens", None),
         },
-        "raw_openai": text,
     }

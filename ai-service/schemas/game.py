@@ -1,26 +1,19 @@
-from typing import Optional
+from typing import List
 from pydantic import BaseModel, Field
 
 
-# ===== Animal Check =====
-
-class AnimalCheckRequest(BaseModel):
-    utterance: str = Field(..., description="Child utterance (from STT)")
-    answer: str = Field(..., description="Canonical animal name")
+class FiveQHintRequest(BaseModel): 
+    answer: str = Field(..., description="Target word")
 
 
-class AnimalCheckResponse(BaseModel):
-    correct: bool
-    matched: Optional[str] = None
-    note: Optional[str] = Field(None, description="e.g., 'negation_detected'")
+class FiveQHintResponse(BaseModel):
+    hints: List[str] = Field(..., description="5 hints")
 
 
-# ===== Twenty Questions (five-questions) =====
-
-class TwentyQCheckRequest(BaseModel):
+class FiveQCheckRequest(BaseModel):
     utterance: str = Field(..., description="Child utterance (from STT)")
     answer: str = Field(..., description="Target word")
 
 
-class TwentyQCheckResponse(BaseModel):
+class FiveQCheckResponse(BaseModel):
     correct: bool
