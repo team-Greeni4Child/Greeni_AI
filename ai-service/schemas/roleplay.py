@@ -6,6 +6,7 @@ from typing import Optional, Sequence, Literal
 RoleType = Literal["shop", "teacher", "friend"]
 
 class RoleplayRequest(BaseModel):
+    session_id: str = Field(..., description="Session Identifier")
     role: RoleType = Field(..., description='"shop"|"teacher"|"friend"')
     user_text: str = Field(..., min_length=1)
     temperature: float = 0.7
@@ -14,4 +15,5 @@ class RoleplayRequest(BaseModel):
 
 
 class RoleplayResponse(BaseModel):
+    session_id: str
     reply: str
