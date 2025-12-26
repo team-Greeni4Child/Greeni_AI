@@ -7,9 +7,27 @@ from config import settings
 
 from schemas.roleplay import RoleplayRequest
 
+from langchain_community.chat_message_histories import FileChatMessageHistory
+from langchain_classic.memory import ConversationBufferMemory
+import os
 
 RoleType = Literal["shop", "teacher", "friend"]
 
+_memory_storage = {}
+
+def _get_memory(session_id: str) -> ConversationBufferMemory:
+    # 세션 ID에 해당하는 메모리 객체를 가져오거나 생성.
+    if session_id not in _memory_storage:
+        history_dir = "chat_histories"
+        if not os.path.exists(history_dir):
+            os.makedirs(history_dir)
+        chat_history = FileChatMessageHistory(file_path=f"{history_dir}/{session_id}.json")
+        _memory_storage[session_id] = ConversationBufferMemory(
+            chat_memory=chat_history,
+            return_messages=True,
+            memory_key="chat_history"
+        )
+    return _memory_storage[session_id]
 
 def _system_base() -> str:
     # 존댓말, 안전/품위 유지(이모티콘 금지), 어린이 친화 톤.
@@ -69,6 +87,21 @@ def _role_instruction(role: RoleType) -> str:
 def _build_messages(req: RoleplayRequest) -> list[dict]:
     sys_prompt = _system_base() + " " + _role_instruction(req.role)
     messages: list[dict] = [{"role": "system", "content": sys_prompt}]
+
+    # 과거 대화 내역 가져오기
+    memory = _get_memory(req.session_id)
+    history_messages = memory.load_memory_variables({})["chat_history"]
+
+    # dict 형식으로 변환
+    for msg in history_messages:
+        if msg.type == "human":
+            role = "user"
+        elif msg.type == "ai":
+            role = "assistant"
+        else:
+            role = "system"
+        messages.append({"role": role, "content": msg.content})
+
     messages.append({"role": "user", "content": req.user_text})
     return messages
 
@@ -99,8 +132,16 @@ def reply(req: RoleplayRequest) -> dict:
     choice = resp.choices[0].message
     text = (choice.content or "").strip()
 
+    # 대화 내용 저장
+    memory = _get_memory(req.session_id)
+    memory.save_context(
+        {"input": req.user_text},
+        {"output": text}
+    )
+
     return {
         "text": text,
+        "session_id": req.session_id,
         "usage": {
             "prompt_tokens": getattr(resp.usage, "prompt_tokens", None),
             "completion_tokens": getattr(resp.usage, "completion_tokens", None),
