@@ -17,3 +17,4 @@ class RoleplayRequest(BaseModel):
 class RoleplayResponse(BaseModel):
     session_id: str
     reply: str
+    turn: int
