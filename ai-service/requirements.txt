@@ -5,3 +5,8 @@ requests>=2.31
 openai>=1.30
 python-multipart>=0.0.9
 pydantic>=2.0
+langchain>=1.0.0
+langchain-community>=0.3.0
+langchain-openai>=0.2.0
+langchain-classic
+pydantic>=2.10.0

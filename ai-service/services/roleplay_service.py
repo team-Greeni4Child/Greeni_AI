@@ -6,6 +6,7 @@ from openai import OpenAI
 from config import settings
 
 from schemas.roleplay import RoleplayRequest
+from schemas.roleplay import RoleplayResponse
 
 from langchain_community.chat_message_histories import FileChatMessageHistory
 from langchain_classic.memory import ConversationBufferMemory
@@ -18,12 +19,7 @@ _memory_storage = {}
 def _get_memory(session_id: str) -> ConversationBufferMemory:
     # 세션 ID에 해당하는 메모리 객체를 가져오거나 생성.
     if session_id not in _memory_storage:
-        history_dir = "chat_histories"
-        if not os.path.exists(history_dir):
-            os.makedirs(history_dir)
-        chat_history = FileChatMessageHistory(file_path=f"{history_dir}/{session_id}.json")
         _memory_storage[session_id] = ConversationBufferMemory(
-            chat_memory=chat_history,
             return_messages=True,
             memory_key="chat_history"
         )
@@ -85,28 +81,45 @@ def _role_instruction(role: RoleType) -> str:
 
 
 def _build_messages(req: RoleplayRequest) -> list[dict]:
+    # messages에 system prompt 생성
     sys_prompt = _system_base() + " " + _role_instruction(req.role)
-    messages: list[dict] = [{"role": "system", "content": sys_prompt}]
 
-    # 과거 대화 내역 가져오기
+    # 과거 대화 내역 가져오기 (dict 형식으로 변환)
     memory = _get_memory(req.session_id)
     history_messages = memory.load_memory_variables({})["chat_history"]
 
-    # dict 형식으로 변환
+    # 현재 턴수 가져오기
+    current_turn = len(memory.chat_memory.messages) // 2
+
+    # 이번이 마지막 턴인 경우, 작별 인사 추가
+    if current_turn==9:
+        print("마무리하기를")
+        sys_prompt = (
+            "★★★ [CRITICAL: FINAL MESSAGE] ★★★\n"
+            "이번이 아이와 나누는 오늘의 마지막 대화입니다."
+            "사용자가 어떤 질문을 하더라도 대화를 확장하지 마세요."
+            "다정하게 작별 인사를 하고 대화 주제를 자연스럽게 마무리하세요."
+        ) + sys_prompt
+    
+    # 메시지 리스트 조립
+    messages: list[dict] = [{"role": "system", "content": sys_prompt}]
+
+    # 과거 대화 내역 추가 (dict 형식으로 변환)
     for msg in history_messages:
-        if msg.type == "human":
-            role = "user"
-        elif msg.type == "ai":
-            role = "assistant"
-        else:
-            role = "system"
+        role = "user" if msg.type == "human" else "assistant"
         messages.append({"role": role, "content": msg.content})
 
+    # 이번이 마지막 턴인 경우, 작별 인사 추가
+    if current_turn==9:
+        messages.append({"role": "system", "content": sys_prompt})
+
+    # 현재 유저 질문 추가
     messages.append({"role": "user", "content": req.user_text})
+
     return messages
 
 
-def reply(req: RoleplayRequest) -> dict:
+def reply(req: RoleplayRequest) -> RoleplayResponse:
     """
     반환 예:
     {
@@ -115,7 +128,7 @@ def reply(req: RoleplayRequest) -> dict:
     }
     """
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    model = getattr(settings, "CHAT_MODEL", "gpt-4o-mini")
+    model = getattr(settings, "CHAT_MODEL", "gpt-4o")
 
     messages = _build_messages(req)
 
@@ -139,12 +152,17 @@ def reply(req: RoleplayRequest) -> dict:
         {"output": text}
     )
 
-    return {
-        "text": text,
-        "session_id": req.session_id,
-        "usage": {
-            "prompt_tokens": getattr(resp.usage, "prompt_tokens", None),
-            "completion_tokens": getattr(resp.usage, "completion_tokens", None),
-            "total_tokens": getattr(resp.usage, "total_tokens", None),
-        },
-    }
+    ## 턴수 세기
+    total_message = len(memory.chat_memory.messages)
+    current_turn = total_message // 2
+
+    ## 10턴이 끝나면 해당 세션 대화 지우기
+    if current_turn>=10:
+        if req.session_id in _memory_storage:
+            del _memory_storage[req.session_id]
+
+    return RoleplayResponse(
+        session_id=req.session_id,
+        reply=text,
+        turn=current_turn 
+    )
