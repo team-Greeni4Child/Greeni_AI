@@ -13,7 +13,7 @@ Git Bash:
 
 PowerShell:
 
-``.venv\Scripts/Activate``
+``.venv\Scripts\activate``
 
 3) 패키지 설치
 
@@ -48,4 +48,5 @@ http://localhost:8000/redoc
 ### Health check:
 
 http://localhost:8000/health
+
 
