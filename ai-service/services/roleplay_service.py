@@ -8,7 +8,6 @@ from config import settings
 from schemas.roleplay import RoleplayRequest
 from schemas.roleplay import RoleplayResponse
 
-from langchain_community.chat_message_histories import FileChatMessageHistory
 from langchain_classic.memory import ConversationBufferMemory
 import os
 
@@ -93,7 +92,6 @@ def _build_messages(req: RoleplayRequest) -> list[dict]:
 
     # 이번이 마지막 턴인 경우, 작별 인사 추가
     if current_turn==9:
-        print("마무리하기를")
         sys_prompt = (
             "★★★ [CRITICAL: FINAL MESSAGE] ★★★\n"
             "이번이 아이와 나누는 오늘의 마지막 대화입니다."
