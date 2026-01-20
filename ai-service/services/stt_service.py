@@ -6,6 +6,8 @@ import shutil
 import subprocess
 from typing import Optional
 
+from schemas.stt import STTResponse
+
 from openai import OpenAI
 from fastapi import UploadFile
 
@@ -77,7 +79,8 @@ async def transcribe(file: UploadFile):
             # 객체 형태라면 .text 속성 사용
             text_out = getattr(transcript, "text", str(transcript))
 
-        return {"text": text_out, "audio_url": None}
+        return STTResponse({"text": text_out, "audio_url": None})
+    # {"text": text_out, "audio_url": None}
 
     finally:
         # 4) 임시 파일 정리

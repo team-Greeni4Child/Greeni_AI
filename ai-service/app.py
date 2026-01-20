@@ -8,10 +8,20 @@ from fastapi import Request, HTTPException
 from config import settings
 from routers import stt, tts, game, diary, chat
 
+from common.logging import setup_logging, get_logger
+from common.errors import register_exception_handlers
+
+# 로깅 설정
+setup_logging()
+log = get_logger("greeni")
+
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
 )
+
+# 전역 핸들러 등록
+register_exception_handlers(app, logger=log)
 
 # CORS 설정
 if settings.ENV == "dev":
@@ -50,17 +60,23 @@ app.include_router(chat.router, prefix="/chat", tags=["chat"])
 def health():
     return {"ok": True, "env": settings.ENV}
 
-# exception 처리
+# HTTPException은 현재처럼 dict면 그대로 내려주되, 응답 형태는 고정
 @app.exception_handler(HTTPException)
 async def http_exception_handler(_: Request, exc: HTTPException):
+    if isinstance(exc.detail, dict):
+        # detail이 {"error": "...", "code": "..."} 형태면 그대로
+        return JSONResponse(status_code=exc.status_code, content=exc.detail)
+    # 문자열 detail도 통일된 형태로 반환
     return JSONResponse(
         status_code=exc.status_code,
-        content={"error": exc.detail},
+        content={"error": str(exc.detail), "code": "http_exception"},
     )
 
+# 예기치 못한 예외는 반드시 서버 로그에 남기고, 클라이언트 응답은 통일
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(_: Request, exc: Exception):
+    log.exception("unhandled_exception", exc_info=exc)
     return JSONResponse(
         status_code=500,
-        content={"error": "internal server error"},
+        content={"error": "internal server error", "code": "internal_error"},
     )
