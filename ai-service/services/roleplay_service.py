@@ -5,8 +5,8 @@ from typing import Literal, Optional
 from openai import OpenAI
 from config import settings
 
-from schemas.roleplay import RoleplayRequest
-from schemas.roleplay import RoleplayResponse
+from schemas.roleplay import RoleplayRequest, RoleplayResponse
+from schemas.roleplay import RoleplayEndRequest, RoleplayEndResponse
 
 from langchain_classic.memory import ConversationBufferMemory
 import os
@@ -116,6 +116,14 @@ def _build_messages(req: RoleplayRequest) -> list[dict]:
 
     return messages
 
+async def end_reply(req: RoleplayEndRequest) -> RoleplayEndResponse:
+    if req.session_id in _memory_storage:
+        _memory_storage[req.session_id].clear()
+        del _memory_storage[req.session_id]
+    
+    return RoleplayEndResponse(
+        session_id=req.session_id
+    )
 
 def reply(req: RoleplayRequest) -> RoleplayResponse:
     """
@@ -157,6 +165,7 @@ def reply(req: RoleplayRequest) -> RoleplayResponse:
     ## 10턴이 끝나면 해당 세션 대화 지우기
     if current_turn>=10:
         if req.session_id in _memory_storage:
+            _memory_storage[req.session_id].clear()
             del _memory_storage[req.session_id]
 
     return RoleplayResponse(

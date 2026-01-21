@@ -17,4 +17,10 @@ class RoleplayRequest(BaseModel):
 class RoleplayResponse(BaseModel):
     session_id: str
     reply: str
-    turn: int
+    turn: int = Field(..., ge=0)
+
+class RoleplayEndRequest(BaseModel):
+    session_id: str = Field(..., description="Session Identifier")
+
+class RoleplayEndResponse(BaseModel):
+    session_id: str
