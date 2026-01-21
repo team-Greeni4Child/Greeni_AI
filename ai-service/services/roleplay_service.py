@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import Literal, Optional
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 from config import settings
 
 from schemas.roleplay import RoleplayRequest, RoleplayResponse
@@ -125,7 +125,7 @@ async def end_reply(req: RoleplayEndRequest) -> RoleplayEndResponse:
         session_id=req.session_id
     )
 
-def reply(req: RoleplayRequest) -> RoleplayResponse:
+async def reply(req: RoleplayRequest) -> RoleplayResponse:
     """
     반환 예:
     {
@@ -133,14 +133,14 @@ def reply(req: RoleplayRequest) -> RoleplayResponse:
       "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     }
     """
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
     model = getattr(settings, "CHAT_MODEL", "gpt-4o")
 
     messages = _build_messages(req)
 
     # TODO: 필요 시 여기서 RAG 문맥을 삽입 (Vector DB 검색 결과를 system 또는 assistant role로 prepend)
 
-    resp = client.chat.completions.create(
+    resp = await client.chat.completions.create(
         model=model, 
         messages=messages,
         temperature=req.temperature,
