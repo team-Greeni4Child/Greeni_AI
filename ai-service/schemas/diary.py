@@ -9,7 +9,7 @@ from typing_extensions import Literal
 DiaryStatus = Literal["active", "ended"]
 
 EmotionLabel = Literal[
-    "anger",
+    "angry",
     "happy",
     "sad",
     "surprised",
