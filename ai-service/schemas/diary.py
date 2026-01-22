@@ -1,41 +1,57 @@
-from typing import Optional, List
-from pydantic import BaseModel, Field, HttpUrl, conint, confloat
+from __future__ import annotations
+
+from pydantic import BaseModel, Field, conint, confloat
+from typing_extensions import Literal
 
 
-# ===== Turns =====
+# ========= Enums =========
 
-class DiaryTurnRequest(BaseModel):
-    child: bool = Field(..., description="True if speaker is the child")
-    text: str = Field(..., description="STT text")
-    audio_url: Optional[HttpUrl] = Field(
-        None,
-        description="Original audio URL (optional)"
-    )
+DiaryStatus = Literal["active", "ended"]
 
-
-class DiaryTurnResponse(BaseModel):
-    turns: conint(ge=0)
+EmotionLabel = Literal[
+    "anger",
+    "happy",
+    "sad",
+    "surprised",
+    "anxiety",
+]
 
 
-# ===== Memory Hits =====
+# ========= Chat (ping-pong) =========
 
-class MemoryHit(BaseModel):
-    id: str = Field(..., description="e.g., 'sid:20250102:1'")
-    score: confloat(ge=0.0, le=1.0)
-    date: str = Field(..., description="YYYY-MM-DD")
-    tags: Optional[List[str]] = None
+class DiaryChatRequest(BaseModel):
+    session_id: str = Field(..., description="Diary session id (from frontend)")
+    user_text: str = Field(..., min_length=1, description="Child utterance text")
 
-
-# ===== Compose =====
-
-class DiaryComposeQuery(BaseModel):
-    withMemory: bool = Field(True)
-    topK: conint(ge=1, le=20) = Field(5)
-    recentDays: Optional[conint(ge=1, le=365)] = Field(90)
+class DiaryChatResponse(BaseModel):
+    session_id: str
+    reply: str = Field(..., description="Model answer")
+    turn_count: conint(ge=0) = Field(..., description="Total user turns so far")
+    status: DiaryStatus = Field("active", description="active or ended")
 
 
-class DiaryComposeResponse(BaseModel):
-    diary: str
-    child_turns: conint(ge=0)
-    memory_hits: Optional[List[MemoryHit]] = None
-    mood: Optional[str] = None
+# ========= Session End (explicit) =========
+
+class DiarySessionEndRequest(BaseModel):
+    session_id: str
+
+class DiarySessionEndResponse(BaseModel):
+    session_id: str
+    turn_count: conint(ge=0)
+    status: DiaryStatus = Field("ended")
+
+
+# ========= Summary + Emotion (after end) =========
+
+class DiaryEmotion(BaseModel):
+    primary: EmotionLabel
+    confidence: confloat(ge=0.0, le=1.0)
+
+class DiarySummarizeRequest(BaseModel):
+    session_id: str
+
+class DiarySummarizeResponse(BaseModel):
+    session_id: str
+    turn_count: conint(ge=0)
+    summary: str
+    emotion: DiaryEmotion
