@@ -1,9 +1,12 @@
-from fastapi import APIRouter, File, UploadFile
-from schemas.stt import STTResponse
+from fastapi import APIRouter
+from schemas.stt import STTRequest, STTResponse
 from services import stt_service
 
 router = APIRouter()
 
 @router.post("/transcribe", response_model=STTResponse)
-async def transcribe(file: UploadFile = File(...)):
-    return await stt_service.transcribe(file)
+async def transcribe(req: STTRequest):
+    return await stt_service.transcribe_url(
+        audio_url=str(req.audio_url),
+        store_audio=req.store_audio,
+    )

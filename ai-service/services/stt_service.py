@@ -9,7 +9,8 @@ from typing import Optional
 from schemas.stt import STTResponse
 
 from openai import OpenAI
-from fastapi import UploadFile
+
+import httpx
 
 client = OpenAI()
 
@@ -25,23 +26,30 @@ def _ext(path: str) -> str:
 def _have_ffmpeg() -> bool:
     return shutil.which("ffmpeg") is not None
 
-async def transcribe(file: UploadFile):
+def _guess_ext_from_url(url: str) -> str:
+    path = url.split("?", 1)[0]
+    ext = os.path.splitext(path)[1].lower()
+    return ext if ext else ".bin"
+
+async def transcribe_url(audio_url: str, store_audio: bool = False):
     """
     Transcribes an audio file using OpenAI's Whisper model,
-    without relying on pyaudioop/pydub.
+    fetching the file via URL (presigned S3 URL assumed).
     """
-    # 1) 업로드 파일을 임시 경로에 저장
+    # 1) (URL 기반) 오디오 파일을 임시 경로에 저장
     unique = uuid.uuid4().hex
-    original_suffix = _ext(file.filename) or ".bin"
+    original_suffix = _guess_ext_from_url(audio_url)
     temp_dir = os.path.abspath("./.tmp_stt")
     os.makedirs(temp_dir, exist_ok=True)
 
     temp_input_path = os.path.join(temp_dir, f"in_{unique}{original_suffix}")
     temp_output_path: Optional[str] = None
 
-    contents = await file.read()
-    with open(temp_input_path, "wb") as f:
-        f.write(contents)
+    async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as http:
+        resp = await http.get(audio_url)
+        resp.raise_for_status()
+        with open(temp_input_path, "wb") as f:
+            f.write(resp.content)
 
     # 2) 필요 시 FFmpeg 변환 시도 (mp3 16kHz mono)
     use_path = temp_input_path
@@ -79,7 +87,7 @@ async def transcribe(file: UploadFile):
             # 객체 형태라면 .text 속성 사용
             text_out = getattr(transcript, "text", str(transcript))
 
-        return STTResponse({"text": text_out, "audio_url": None})
+        return STTResponse(text=text_out, audio_url=None)
     # {"text": text_out, "audio_url": None}
 
     finally:
