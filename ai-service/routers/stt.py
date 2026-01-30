@@ -7,6 +7,6 @@ router = APIRouter()
 @router.post("/transcribe", response_model=STTResponse)
 async def transcribe(req: STTRequest):
     return await stt_service.transcribe_url(
-        audio_url=req.audio_url,
+        audio_url=str(req.audio_url),
         store_audio=req.store_audio,
     )
