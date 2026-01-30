@@ -21,8 +21,7 @@ class Settings:
         "S3_PUBLIC_BASE_URL",
         "https://greeni-upload-files.s3.ap-northeast-2.amazonaws.com/"
     )
-    BACKEND_ACCESS_TOKEN=0
-
+    BACKEND_ACCESS_TOKEN: str = os.getenv("BACKEND_ACCESS_TOKEN", "")
     STORAGE_DIR: Path = BASE_DIR / "storage"
     TTS_DIR: Path = STORAGE_DIR / "tts"
 
