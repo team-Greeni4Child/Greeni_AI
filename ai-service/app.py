@@ -41,12 +41,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# TTS 출력 경로
-app.mount(
-    "/storage/tts",
-    StaticFiles(directory=str(settings.TTS_DIR)),
-    name="tts-files",
-)
+# TTS 출력 경로 # 추가한 부분 2: app.mount 주석(삭제)
+# app.mount(
+#     "/storage/tts",
+#     StaticFiles(directory=str(settings.TTS_DIR)),
+#     name="tts-files",
+# )
 
 # 라우터 설정
 app.include_router(stt.router, prefix="/stt", tags=["stt"])

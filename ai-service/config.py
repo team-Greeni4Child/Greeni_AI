@@ -13,8 +13,15 @@ class Settings:
     APP_NAME: str = os.getenv("APP_NAME", "Greeni-AI-Service")
     ENV: str = os.getenv("ENV", "dev")  # dev / prod
 
-    BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
-
+    # BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
+    # 추가한 부분 1) 백엔드 Base URL / presign 경로(Path) / S3 공개 base URL / BACKEND_ACCESS_TOKEN
+    BACKEND_BASE_URL: str = os.getenv("BACKEND_BASE_URL", "http://43.201.145.252:8080")
+    BACKEND_PRESIGN_PATH: str = os.getenv("BACKEND_PRESIGN_PATH", "/api/s3-presigned-url")
+    S3_PUBLIC_BASE_URL: str = os.getenv(
+        "S3_PUBLIC_BASE_URL",
+        "https://greeni-upload-files.s3.ap-northeast-2.amazonaws.com/"
+    )
+    BACKEND_ACCESS_TOKEN: str = os.getenv("BACKEND_ACCESS_TOKEN", "")
     STORAGE_DIR: Path = BASE_DIR / "storage"
     TTS_DIR: Path = STORAGE_DIR / "tts"
 

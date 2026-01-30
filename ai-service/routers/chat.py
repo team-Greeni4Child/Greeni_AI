@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from schemas.diary import DiaryChatRequest
 from schemas.roleplay import RoleplayRequest, RoleplayEndRequest
 from services.roleplay_service import reply, end_reply
 
