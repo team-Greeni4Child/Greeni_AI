@@ -24,22 +24,22 @@ app = FastAPI(
 register_exception_handlers(app, logger=log)
 
 # CORS 설정
-if settings.ENV == "dev":
-    allow_origins = ["*"]
-else:
+#if settings.ENV == "dev":
+#    allow_origins = ["*"]
+#else:
     # 
-    allow_origins = [
-        settings.BASE_URL,
-        "https://greeni-app.com",  # 수정예정
-    ]
+#    allow_origins = [
+#        settings.BASE_URL,
+#        "https://greeni-app.com",  # 수정예정
+#    ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allow_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+#app.add_middleware(
+#    CORSMiddleware,
+#    allow_origins=allow_origins,
+#    allow_credentials=True,
+#    allow_methods=["*"],
+#    allow_headers=["*"],
+#)
 
 # TTS 출력 경로 # 추가한 부분 2: app.mount 주석(삭제)
 # app.mount(
