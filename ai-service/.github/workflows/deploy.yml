@@ -1,0 +1,57 @@
+name: Build and Deploy AI Server via Spring Bastion
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      #- name: Set up Docker Buildx
+      #  uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build & Push AI Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-ai:latest
+
+   
+      - name: Deploy via Spring Boot Bastion
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SPRING_EC2_HOST }}
+          username: ${{ secrets.SPRING_EC2_USER }}
+          key: ${{ secrets.SPRING_EC2_SSH_KEY }}
+          script: |
+            echo "Deploying to AI server through Spring EC2..."
+
+            ssh -o StrictHostKeyChecking=no \
+              ${{ secrets.AI_EC2_USER }}@${{ secrets.AI_PRIVATE_IP }} << 'EOF'
+
+              docker pull ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-ai:latest
+              docker stop fastapi-ai || true
+              docker rm fastapi-ai || true
+
+              docker run -d \
+                --name fastapi-ai \
+                -p 8000:8000 \
+                --restart always \
+                --env-file /home/ubuntu/fastapi.env \
+                ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-ai:latest
+
+            EOF
