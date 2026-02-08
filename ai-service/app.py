@@ -29,7 +29,7 @@ if settings.ENV == "dev":
 else:
      
     allow_origins = [
-        settings.BASE_URL,
+        #settings.BASE_URL,
         "http://10.0.1.246:8080",
         #"https://greeni-app.com",  # 수정예정
     ]
