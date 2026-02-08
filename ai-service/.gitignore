@@ -2,3 +2,5 @@
 storage/tts/
 __pycache__/
 *.pyc
+.venv/
+venv/
