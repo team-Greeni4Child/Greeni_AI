@@ -1,7 +1,10 @@
 # services/diary_service.py
 from __future__ import annotations
 
-from typing import Dict
+import json
+from typing import Dict, Any
+
+from langchain_classic.memory import ConversationBufferMemory
 
 from schemas.diary import (
     DiaryChatRequest,
@@ -12,34 +15,34 @@ from schemas.diary import (
     DiarySummarizeResponse,
     DiaryEmotion,
 )
-
 from common.llm import chat_text
 from common.errors import AppError
 
-# -------------------------
-# in-memory session storage
-# -------------------------
-# {
-#   session_id: {
-#       "turns": int,
-#       "texts": [str, ...]
-#   }
-# }
-_sessions: Dict[str, Dict] = {}
+_memory_storage: Dict[str, ConversationBufferMemory] = {}
 
 
-def _get_session(session_id: str) -> Dict:
-    if session_id not in _sessions:
-        _sessions[session_id] = {
-            "turns": 0,
-            "texts": [],
-        }
-    return _sessions[session_id]
+def _get_memory(session_id: str) -> ConversationBufferMemory:
+    if session_id not in _memory_storage:
+        _memory_storage[session_id] = ConversationBufferMemory(
+            return_messages=True,
+            memory_key="chat_history",
+        )
+    return _memory_storage[session_id]
 
 
-# -------------------------
-# system prompts
-# -------------------------
+def _turn_count(memory: ConversationBufferMemory) -> int:
+    return len(memory.chat_memory.messages) // 2
+
+
+def _serialize_history(memory: ConversationBufferMemory) -> str:
+    history_messages = memory.load_memory_variables({})["chat_history"]
+    lines = []
+    for msg in history_messages:
+        speaker = "아이" if msg.type == "human" else "그리니"
+        lines.append(f"{speaker}: {msg.content}")
+    return "\n".join(lines).strip()
+
+
 DIARY_SYSTEM_PROMPT = (
     "당신은 5~8세 어린이를 위한 일기 대화 도우미입니다. "
     "아이의 말을 존중하고, 판단하거나 훈계하지 않습니다. "
@@ -50,38 +53,24 @@ DIARY_SYSTEM_PROMPT = (
 )
 
 SUMMARY_SYSTEM_PROMPT = (
-    "다음은 아이와의 일기 대화 기록입니다. "
-    "이를 바탕으로 하루를 한 문단으로 요약하고, "
-    "아이의 주요 감정을 하나로 추정하세요."
+    "당신은 일기 대화 기록을 요약하는 도우미입니다. "
+    "반드시 JSON만 출력해야 합니다. "
+    "JSON 외 텍스트(설명/문장/코드블록 표기 등)는 절대 출력하지 마세요."
 )
 
 EMOTION_LABELS = ["angry", "happy", "sad", "surprised", "anxiety"]
 
 
-# -------------------------
-# chat (ping-pong)
-# -------------------------
 async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
-    session = _get_session(req.session_id)
+    memory = _get_memory(req.session_id)
+    history_messages = memory.load_memory_variables({})["chat_history"]
 
-    session["turns"] += 1
-    session["texts"].append(req.user_text)
+    messages: list[dict[str, str]] = [{"role": "system", "content": DIARY_SYSTEM_PROMPT}]
 
-    messages = [
-        {"role": "system", "content": DIARY_SYSTEM_PROMPT},
-    ]
+    for msg in history_messages:
+        role = "user" if msg.type == "human" else "assistant"
+        messages.append({"role": role, "content": msg.content})
 
-    # 이전 대화 문맥 추가
-    for t in session["texts"][:-1]:
-        messages.append({"role": "user", "content": t})
-        messages.append(
-            {
-                "role": "assistant",
-                "content": "알겠습니다. 조금 더 이야기해 주실 수 있을까요?",
-            }
-        )
-
-    # 이번 발화
     messages.append({"role": "user", "content": req.user_text})
 
     reply = chat_text(
@@ -90,78 +79,96 @@ async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
         session_id=req.session_id,
     )
 
+    memory.save_context({"input": req.user_text}, {"output": reply})
+    tc = _turn_count(memory)
+
+    # 10턴에서 대화 종료하는 로직 추가해야 함
+    # 여기서 대화 종료했다고 memory까지 지우면 안 됩니다 (summary에 사용할 거니까)
+
     return DiaryChatResponse(
         session_id=req.session_id,
         reply=reply,
-        turn_count=session["turns"],
+        turn_count=tc,
         status="active",
     )
 
 
-# -------------------------
-# explicit end
-# -------------------------
 async def end_session(req: DiarySessionEndRequest) -> DiarySessionEndResponse:
-    session = _get_session(req.session_id)
-
+    # 일기쓰기 자체를 종료 -> memory 삭제
+    # 대화를 종료하고 일기 summary로 넘어감 -> memory 삭제 x
+    memory = _get_memory(req.session_id)
     return DiarySessionEndResponse(
         session_id=req.session_id,
-        turn_count=session["turns"],
+        turn_count=_turn_count(memory),
         status="ended",
     )
 
 
-# -------------------------
-# summarize + emotion
-# -------------------------
 async def summarize(req: DiarySummarizeRequest) -> DiarySummarizeResponse:
-    session = _sessions.get(req.session_id)
-    if not session:
+    memory = _memory_storage.get(req.session_id)
+    if not memory:
         raise AppError(
             message="해당 일기 세션을 찾을 수 없습니다.",
             code="diary_session_not_found",
             status_code=404,
         )
 
-    diary_text = " ".join(session["texts"])
+    diary_text = _serialize_history(memory)
+    tc = _turn_count(memory)
 
-    messages = [
-        {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": (
-                f"대화 기록:\n{diary_text}\n\n"
-                "출력 형식:\n"
-                "요약: <한 문단 요약>\n"
-                "감정: <angry|happy|sad|surprised|anxiety>"
-            ),
+    user_prompt = {
+        "dialogue": diary_text,
+        "labels": EMOTION_LABELS,
+        "output_schema": {
+            "summary": "string (Korean, 2~4 sentences, one paragraph)",
+            "emotion": {"primary": "one of labels", "confidence": "number 0.0~1.0"},
         },
-    ]
+        "rules": [
+            "출력은 반드시 JSON 객체 1개만",
+            "키는 summary, emotion만 사용",
+            "emotion.primary는 labels 중 1개",
+            "emotion.confidence는 0.0~1.0",
+        ],
+    }
 
     result = chat_text(
-        messages=messages,
+        messages=[
+            {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+            {"role": "user", "content": json.dumps(user_prompt, ensure_ascii=False)},
+        ],
         feature="diary_summary",
         session_id=req.session_id,
     )
 
-    # 매우 단순한 파싱 (후에 구조화 가능)
-    summary = result
-    emotion_label = "happy"
+    # 파싱 및 exception 처리
+    parsed: Dict[str, Any]
+    try:
+        parsed = json.loads(result)
+    except Exception:
+        # 최소 폴백: 전체 문자열을 summary로 처리
+        parsed = {
+            "summary": result.strip(),
+            "emotion": {"primary": "happy", "confidence": 0.5},
+        }
 
-    for e in EMOTION_LABELS:
-        if e in result.lower():
-            emotion_label = e
-            break
+    summary = str(parsed.get("summary", "")).strip() or "오늘 이야기를 정리하기가 어려웠어요."
+    emo = parsed.get("emotion") or {}
+    primary = str(emo.get("primary", "happy"))
+    if primary not in EMOTION_LABELS:
+        primary = "happy"
+    try:
+        confidence = float(emo.get("confidence", 0.6))
+    except Exception:
+        confidence = 0.6
+    confidence = max(0.0, min(1.0, confidence))
 
-    # 세션 정리
-    del _sessions[req.session_id]
+    # 현재는 기존처럼 세션 종료 후 메모리 삭제(원하시면 여기 대신 Vector DB 저장으로 교체)
+    memory.clear()
+    del _memory_storage[req.session_id]
 
     return DiarySummarizeResponse(
         session_id=req.session_id,
-        turn_count=session["turns"],
+        turn_count=tc,
         summary=summary,
-        emotion=DiaryEmotion(
-            primary=emotion_label,
-            confidence=0.6,
-        ),
+        emotion=DiaryEmotion(primary=primary, confidence=confidence),
     )
