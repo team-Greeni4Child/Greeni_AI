@@ -61,30 +61,66 @@ SUMMARY_SYSTEM_PROMPT = (
 EMOTION_LABELS = ["angry", "happy", "sad", "surprised", "anxiety"]
 
 
+CLOSING_PROMPT = (
+    "이제 오늘의 일기 대화를 마무리해야 합니다. "
+    "아이의 이야기를 따뜻하게 정리해주고, "
+    "오늘 이야기해줘서 고맙다고 말해주세요. "
+    "질문은 하지 마세요. "
+    "2~3문장으로 부드럽게 마무리하세요."
+)
+
+
 async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
     memory = _get_memory(req.session_id)
     history_messages = memory.load_memory_variables({})["chat_history"]
 
-    messages: list[dict[str, str]] = [{"role": "system", "content": DIARY_SYSTEM_PROMPT}]
+    # 현재 턴 수 계산 (assistant 응답 기준)
+    tc = _turn_count(memory)
 
+    # 이번 응답이 10번째가 되도록 마무리 유도 여부 판단
+    is_closing_turn = tc >= 9
+
+    messages: list[dict[str, str]] = [
+        {"role": "system", "content": DIARY_SYSTEM_PROMPT}
+    ]
+
+    # 10턴 도달 직전이면 마무리 프롬프트 추가
+    if is_closing_turn:
+        messages.append(
+            {"role": "system", "content": CLOSING_PROMPT}
+        )
+
+    # 기존 대화 히스토리 반영
     for msg in history_messages:
         role = "user" if msg.type == "human" else "assistant"
         messages.append({"role": role, "content": msg.content})
 
+    # 이번 사용자 입력 추가
     messages.append({"role": "user", "content": req.user_text})
 
+    # LLM 호출
     reply = chat_text(
         messages=messages,
         feature="diary_chat",
         session_id=req.session_id,
     )
 
+    # 메모리 저장
     memory.save_context({"input": req.user_text}, {"output": reply})
+
+    # 저장 후 턴 수 재계산
     tc = _turn_count(memory)
 
-    # 10턴에서 대화 종료하는 로직 추가해야 함
-    # 여기서 대화 종료했다고 memory까지 지우면 안 됩니다 (summary에 사용할 거니까)
+    # 10턴 도달 시 대화 종료 상태 반환 (memory는 유지)
+    if tc >= 10:
+        return DiaryChatResponse(
+            session_id=req.session_id,
+            reply=reply,
+            turn_count=tc,
+            status="completed",
+        )
 
+    # 일반 진행 상태
     return DiaryChatResponse(
         session_id=req.session_id,
         reply=reply,
@@ -93,10 +129,17 @@ async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
     )
 
 
+
 async def end_session(req: DiarySessionEndRequest) -> DiarySessionEndResponse:
     # 일기쓰기 자체를 종료 -> memory 삭제
     # 대화를 종료하고 일기 summary로 넘어감 -> memory 삭제 x
-    memory = _get_memory(req.session_id)
+    # memory = _get_memory(req.session_id)
+    memory = _memory_storage.get(req.session_id)
+
+    if req.status != "completed":
+        memory.clear()
+        del _memory_storage[req.session_id]
+        
     return DiarySessionEndResponse(
         session_id=req.session_id,
         turn_count=_turn_count(memory),
