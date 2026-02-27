@@ -133,17 +133,23 @@ async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
 async def end_session(req: DiarySessionEndRequest) -> DiarySessionEndResponse:
     # 일기쓰기 자체를 종료 -> memory 삭제
     # 대화를 종료하고 일기 summary로 넘어감 -> memory 삭제 x
-    # memory = _get_memory(req.session_id)
-    memory = _memory_storage.get(req.session_id)
+    memory = _get_memory(req.session_id)
+    turn_count = _turn_count(memory)
 
     if req.status != "completed":
         memory.clear()
         del _memory_storage[req.session_id]
+
+        return DiarySessionEndResponse(
+        session_id=req.session_id,
+        turn_count=_turn_count,
+        status="ended",
+    )
         
     return DiarySessionEndResponse(
         session_id=req.session_id,
-        turn_count=_turn_count(memory),
-        status="ended",
+        turn_count=turn_count,
+        status=req.status,
     )
 
 
