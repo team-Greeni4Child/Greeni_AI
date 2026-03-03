@@ -6,7 +6,7 @@ from typing_extensions import Literal
 
 # ========= Enums =========
 
-DiaryStatus = Literal["active", "ended"]
+DiaryStatus = Literal["active", "ended", "completed"]
 
 EmotionLabel = Literal[
     "angry",
@@ -34,6 +34,7 @@ class DiaryChatResponse(BaseModel):
 
 class DiarySessionEndRequest(BaseModel):
     session_id: str
+    status : DiaryStatus
 
 class DiarySessionEndResponse(BaseModel):
     session_id: str
