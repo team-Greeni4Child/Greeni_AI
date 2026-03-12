@@ -53,6 +53,7 @@ class DiaryEmotion(BaseModel):
     confidence: confloat(ge=0.0, le=1.0)
 
 class DiarySummarizeRequest(BaseModel):
+    user_id: str
     session_id: str
 
 class DiarySummarizeResponse(BaseModel):

@@ -125,6 +125,7 @@ async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
     # 10턴 도달 시 대화 종료 상태 반환 (memory는 유지)
     if tc >= 10:
         return DiaryChatResponse(
+            user_id=req.user_id,
             session_id=req.session_id,
             reply=reply,
             turn_count=tc,
@@ -133,6 +134,7 @@ async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
 
     # 일반 진행 상태
     return DiaryChatResponse(
+        user_id=req.user_id,
         session_id=req.session_id,
         reply=reply,
         turn_count=tc,
@@ -152,12 +154,14 @@ async def end_session(req: DiarySessionEndRequest) -> DiarySessionEndResponse:
         del _memory_storage[req.session_id]
 
         return DiarySessionEndResponse(
-        session_id=req.session_id,
-        turn_count=_turn_count,
-        status="ended",
+            user_id=req.user_id,
+            session_id=req.session_id,
+            turn_count=_turn_count,
+            status="ended",
     )
         
     return DiarySessionEndResponse(
+        user_id=req.user_id,
         session_id=req.session_id,
         turn_count=turn_count,
         status=req.status,
@@ -182,12 +186,15 @@ async def summarize(req: DiarySummarizeRequest) -> DiarySummarizeResponse:
         "output_schema": {
             "summary": "string (Korean, 2~4 sentences, one paragraph)",
             "emotion": {"primary": "one of labels", "confidence": "number 0.0~1.0"},
+            "keyword": "string (Korean, one short noun phrase)",
         },
         "rules": [
             "출력은 반드시 JSON 객체 1개만",
             "키는 summary, emotion만 사용",
             "emotion.primary는 labels 중 1개",
             "emotion.confidence는 0.0~1.0",
+            "keyword는 오늘 일기를 가장 잘 나타내는 핵심 키워드 1개",
+            "keyword는 2~10자 정도의 짧은 한국어 명사 또는 명사구",
         ],
     }
 
@@ -209,6 +216,7 @@ async def summarize(req: DiarySummarizeRequest) -> DiarySummarizeResponse:
         parsed = {
             "summary": result.strip(),
             "emotion": {"primary": "happy", "confidence": 0.5},
+            "keyword": "일상",
         }
 
     summary = str(parsed.get("summary", "")).strip() or "오늘 이야기를 정리하기가 어려웠어요."
@@ -222,13 +230,17 @@ async def summarize(req: DiarySummarizeRequest) -> DiarySummarizeResponse:
         confidence = 0.6
     confidence = max(0.0, min(1.0, confidence))
 
+    keyword = str(parsed.get("keyword", "")).strip() or "일상"
+
     # 현재는 기존처럼 세션 종료 후 메모리 삭제(원하시면 여기 대신 Vector DB 저장으로 교체)
     memory.clear()
     del _memory_storage[req.session_id]
 
     return DiarySummarizeResponse(
+        user_id=req.user_id,
         session_id=req.session_id,
         turn_count=tc,
         summary=summary,
         emotion=DiaryEmotion(primary=primary, confidence=confidence),
+        keyword=keyword,
     )
