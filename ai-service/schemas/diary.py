@@ -20,10 +20,12 @@ EmotionLabel = Literal[
 # ========= Chat (ping-pong) =========
 
 class DiaryChatRequest(BaseModel):
+    user_id: str = Field(..., description="User id (from backend)")
     session_id: str = Field(..., description="Diary session id (from frontend)")
     user_text: str = Field(..., min_length=1, description="Child utterance text")
 
 class DiaryChatResponse(BaseModel):
+    user_id: str
     session_id: str
     reply: str = Field(..., description="Model answer")
     turn_count: conint(ge=0) = Field(..., description="Total user turns so far")
@@ -33,10 +35,12 @@ class DiaryChatResponse(BaseModel):
 # ========= Session End (explicit) =========
 
 class DiarySessionEndRequest(BaseModel):
+    user_id: str
     session_id: str
     status : DiaryStatus
 
 class DiarySessionEndResponse(BaseModel):
+    user_id: str
     session_id: str
     turn_count: conint(ge=0)
     status: DiaryStatus = Field("ended")
@@ -52,6 +56,7 @@ class DiarySummarizeRequest(BaseModel):
     session_id: str
 
 class DiarySummarizeResponse(BaseModel):
+    user_id: str
     session_id: str
     turn_count: conint(ge=0)
     summary: str
