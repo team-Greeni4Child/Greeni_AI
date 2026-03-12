@@ -56,3 +56,4 @@ class DiarySummarizeResponse(BaseModel):
     turn_count: conint(ge=0)
     summary: str
     emotion: DiaryEmotion
+    keyword: str
