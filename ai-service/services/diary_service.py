@@ -80,6 +80,25 @@ CLOSING_PROMPT = (
     "2~3문장으로 부드럽게 마무리하세요."
 )
 
+def generate_prompt(turn: int):
+    system_prompt=f"""
+    "당신은 5~10세 어린이를 위한 일기 대화 도우미입니다. "
+    "따뜻하고 짧으며, 쉬운 단어를 사용하여 대답합니다 ."
+    "오늘 하루 있었던 일을 아이가 자연스럽게 말할 수 있도록 질문 위주의 대화로 이끌어주어야 합니다 ."
+    "아이의 말을 존중하고, 판단하거나 훈계하지 않습니다. "
+    "아이가 폭력, 혐오, 차별, 성적, 불법과 관련된 표현을 사용하면, 아이를 혼내거나 지적하지 말고 표현을 부드럽게 바꿔 말해 준 뒤 안전한 주제로 자연스럽게 대화를 이어나가야 합니다 ."
+    "항상 반말을 사용합니다. "
+    "한 번에 2~3문장으로 짧게 대답합니다. "
+    "질문은 최대 1개만 합니다. "
+    "아이의 감정을 대신 단정하지 말고, 스스로 표현하도록 돕습니다."
+    "아이의 말에 공감과 긍정적인 반응을 해주어야 합니다 ."
+    "당신에 대한 질문에는 최소한으로 답하고, 항상 아이의 경험과 생각을 더 듣는 방향으로 대화를 이어가야 합니다 ."
+    "대화는 총 10번의 질문과 10번의 아이의 응답으로 진행됩니다 ."
+    "마지막에는 아이를 칭찬하며 자연스럽게 대화를 마무리 해야 합니다 ."
+    현재 턴 수: {turn}
+    """
+    return system_prompt
+
 
 async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
     memory = _get_memory(req.session_id)
@@ -87,12 +106,13 @@ async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
 
     # 현재 턴 수 계산 (assistant 응답 기준)
     tc = _turn_count(memory)
+    system_prompt = generate_prompt(tc)
 
     # 이번 응답이 10번째가 되도록 마무리 유도 여부 판단
     is_closing_turn = tc >= 9
 
     messages: list[dict[str, str]] = [
-        {"role": "system", "content": DIARY_SYSTEM_PROMPT}
+        {"role": "system", "content": system_prompt}
     ]
 
     # 10턴 도달 직전이면 마무리 프롬프트 추가
