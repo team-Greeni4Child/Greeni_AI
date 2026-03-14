@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Optional, Literal
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 
 class STTFormat(str, Enum):
@@ -11,11 +11,6 @@ class STTFormat(str, Enum):
 
 
 class STTRequest(BaseModel):
-    audio_url: HttpUrl = Field(
-        ...,
-        description="Access URL to the S3 audio file provided by the backend (assumes presigned URL)",
-        examples=["https://example-bucket.s3.amazonaws.com/audio.wav?X-Amz-Signature=..."],
-    )
     purpose: Literal["roleplay", "game", "diary"] = Field(
         ...,
         description='Indicates the feature context ("roleplay" | "game" | "diary")',
@@ -26,10 +21,18 @@ class STTRequest(BaseModel):
         description="Whether to store the audio after processing",
         examples=[False],
     )
+    session_id: Optional[str] = Field(
+        None, 
+        description="Only exists for diary"
+    )
 
 
 class STTResponse(BaseModel):
-    text: str = Field(..., description="Transcribed text")
-    audio_url: Optional[HttpUrl] = Field(
-        None, description="Stored audio URL (optional)"
+    text: str = Field(
+        ..., 
+        description="Transcribed text"
+    )
+    audio_url: Optional[str] = Field(
+        None, 
+        description="Stored audio URL (optional)"
     )

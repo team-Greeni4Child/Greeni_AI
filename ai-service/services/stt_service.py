@@ -1,16 +1,7 @@
-# stt_service.py
-
-import os
-import uuid
-import shutil
-import subprocess
+import os, uuid, shutil, subprocess
 from typing import Optional
-
 from schemas.stt import STTResponse
-
 from openai import OpenAI
-
-import httpx
 
 client = OpenAI()
 
@@ -20,41 +11,37 @@ SUPPORTED_EXTS = {
     ".wav", ".webm", ".ogg", ".oga", ".flac"
 }
 
-def _ext(path: str) -> str:
+def ext(path: str) -> str:
     return os.path.splitext(path)[1].lower()
 
-def _have_ffmpeg() -> bool:
+def have_ffmpeg() -> bool:
     return shutil.which("ffmpeg") is not None
 
-def _guess_ext_from_url(url: str) -> str:
-    path = url.split("?", 1)[0]
-    ext = os.path.splitext(path)[1].lower()
-    return ext if ext else ".bin"
-
-async def transcribe_url(audio_url: str, store_audio: bool = False):
-    """
-    Transcribes an audio file using OpenAI's Whisper model,
-    fetching the file via URL (presigned S3 URL assumed).
-    """
-    # 1) (URL 기반) 오디오 파일을 임시 경로에 저장
+async def transcribe_file(
+    audio_bytes: bytes,
+    filename: str,
+    purpose: str,
+    store_audio: bool = False,
+    session_id: str = None
+) -> STTResponse:
+    
     unique = uuid.uuid4().hex
-    original_suffix = _guess_ext_from_url(audio_url)
-    temp_dir = os.path.abspath("./.tmp_stt")
+    ext = os.path.splitext(filename)[1].lower() if filename else ".bin"
+    temp_dir = os.path.abspath("./tmp_stt")
     os.makedirs(temp_dir, exist_ok=True)
 
-    temp_input_path = os.path.join(temp_dir, f"in_{unique}{original_suffix}")
+    temp_input_path = os.path.join(temp_dir, f"in_{unique}{ext}")
     temp_output_path: Optional[str] = None
 
-    async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as http:
-        resp = await http.get(audio_url)
-        resp.raise_for_status()
-        with open(temp_input_path, "wb") as f:
-            f.write(resp.content)
+    # 1) 바이너리 데이터를 임시 파일로 저장
+    with open(temp_input_path, "wb") as f:
+        f.write(audio_bytes)
 
-    # 2) 필요 시 FFmpeg 변환 시도 (mp3 16kHz mono)
     use_path = temp_input_path
+
     try:
-        if _ext(temp_input_path) not in SUPPORTED_EXTS and _have_ffmpeg():
+        # 2) FFmpeg 변환 로직
+        if ext not in SUPPORTED_EXTS and shutil.which("ffmpeg"):
             temp_output_path = os.path.join(temp_dir, f"conv_{unique}.mp3")
             # -y: overwrite, -vn: no video, -ar 16000: 16kHz, -ac 1: mono, -b:a 64k: 적당한 비트레이트
             cmd = [
@@ -65,41 +52,23 @@ async def transcribe_url(audio_url: str, store_audio: bool = False):
             ]
             subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             use_path = temp_output_path
-    except Exception as e:
-        # 변환 실패 시 원본으로 폴백
-        print(f"[STT] FFmpeg 변환 실패, 원본으로 진행합니다: {e}")
-        use_path = temp_input_path
-
-    # 3) Whisper 호출
-    try:
+ 
+        # 3) Whisper 호출
         with open(use_path, "rb") as audio_file:
+            fname = os.path.basename(use_path) 
+            
             transcript = client.audio.transcriptions.create(
                 model="whisper-1",
-                file=audio_file,
+                file=(fname, audio_file),  
                 language="ko",
                 response_format="text",
             )
 
-        # SDK 버전에 따라 문자열 또는 객체일 수 있음 → 안전 처리
-        if isinstance(transcript, str):
-            text_out = transcript
-        else:
-            # 객체 형태라면 .text 속성 사용
-            text_out = getattr(transcript, "text", str(transcript))
-
+        text_out = transcript if isinstance(transcript, str) else getattr(transcript, "text", str(transcript))
         return STTResponse(text=text_out, audio_url=None)
-    # {"text": text_out, "audio_url": None}
 
     finally:
         # 4) 임시 파일 정리
-        try:
-            if os.path.exists(temp_input_path):
-                os.remove(temp_input_path)
-        except Exception:
-            pass
-        if temp_output_path:
-            try:
-                if os.path.exists(temp_output_path):
-                    os.remove(temp_output_path)
-            except Exception:
-                pass
+        for path in [temp_input_path, temp_output_path]:
+            if path and os.path.exists(path):
+                os.remove(path)
