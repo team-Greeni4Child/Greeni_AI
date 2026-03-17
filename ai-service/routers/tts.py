@@ -118,10 +118,6 @@ async def speak(body: TTSRequest, background_tasks: BackgroundTasks):
         speed=body.speed,
     )
 
-    response_headers = {
-        "Content-Disposition": "inline; filename=tts.mp3"
-    }
-
     path = _resolve_path(body.purpose)
 
     if body.purpose == "diary":
@@ -138,5 +134,4 @@ async def speak(body: TTSRequest, background_tasks: BackgroundTasks):
     return Response(
         content=audio_bytes,
         media_type="audio/mpeg",
-        headers=response_headers,
     )

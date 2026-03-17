@@ -18,5 +18,5 @@ class TTSRequest(BaseModel):
         description="Playback speed multiplier"
     )
 
-# class TTSResponse(BaseModel):
-#     audio_url: HttpUrl
+class TTSResponse(BaseModel):
+    audio_content: bytes = Field(..., description="MP3 binary data")
