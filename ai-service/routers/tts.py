@@ -133,5 +133,4 @@ async def speak(body: TTSRequest, background_tasks: BackgroundTasks):
 
     return Response(
         content=audio_bytes,
-        media_type="audio/mpeg",
     )
