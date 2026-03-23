@@ -145,7 +145,6 @@ async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
     # 10턴 도달 시 대화 종료 상태 반환 (memory는 유지)
     if tc >= 10:
         return DiaryChatResponse(
-            user_id=req.user_id,
             session_id=req.session_id,
             reply=reply,
             turn_count=tc,
@@ -154,7 +153,6 @@ async def chat(req: DiaryChatRequest) -> DiaryChatResponse:
 
     # 일반 진행 상태
     return DiaryChatResponse(
-        user_id=req.user_id,
         session_id=req.session_id,
         reply=reply,
         turn_count=tc,
@@ -174,14 +172,12 @@ async def end_session(req: DiarySessionEndRequest) -> DiarySessionEndResponse:
         del _memory_storage[req.session_id]
 
         return DiarySessionEndResponse(
-            user_id=req.user_id,
             session_id=req.session_id,
             turn_count=_turn_count,
             status="ended",
     )
         
     return DiarySessionEndResponse(
-        user_id=req.user_id,
         session_id=req.session_id,
         turn_count=turn_count,
         status=req.status,
@@ -257,7 +253,6 @@ async def summarize(req: DiarySummarizeRequest) -> DiarySummarizeResponse:
     del _memory_storage[req.session_id]
 
     return DiarySummarizeResponse(
-        user_id=req.user_id,
         session_id=req.session_id,
         turn_count=tc,
         summary=summary,
