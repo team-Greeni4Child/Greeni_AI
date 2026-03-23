@@ -11,9 +11,9 @@ class STTFormat(str, Enum):
 
 
 class STTRequest(BaseModel):
-    purpose: Literal["roleplay", "game", "diary"] = Field(
+    purpose: Literal["roleplay", "fiveq", "diary"] = Field(
         ...,
-        description='Indicates the feature context ("roleplay" | "game" | "diary")',
+        description='Indicates the feature context ("roleplay" | "fiveq" | "diary")',
         examples=["diary"],
     )
     store_audio: bool = Field(
