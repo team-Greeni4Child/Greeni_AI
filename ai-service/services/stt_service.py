@@ -3,13 +3,15 @@ from typing import Optional
 from schemas.stt import STTResponse
 from openai import OpenAI
 
+import imageio_ffmpeg as iio_ffmpeg
+
 client = OpenAI()
 
 # Whisper가 무리 없이 처리하는 대표 확장자 목록
-SUPPORTED_EXTS = {
-    ".mp3", ".mp4", ".mpeg", ".mpga", ".m4a",
-    ".wav", ".webm", ".ogg", ".oga", ".flac"
-}
+#SUPPORTED_EXTS = {
+#    ".mp3", ".mp4", ".mpeg", ".mpga", ".m4a",
+#    ".wav", ".webm", ".ogg", ".oga", ".flac"
+#}
 
 def ext(path: str) -> str:
     return os.path.splitext(path)[1].lower()
@@ -40,18 +42,28 @@ async def transcribe_file(
     use_path = temp_input_path
 
     try:
-        # 2) FFmpeg 변환 로직
-        if ext not in SUPPORTED_EXTS and shutil.which("ffmpeg"):
-            temp_output_path = os.path.join(temp_dir, f"conv_{unique}.mp3")
-            # -y: overwrite, -vn: no video, -ar 16000: 16kHz, -ac 1: mono, -b:a 64k: 적당한 비트레이트
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", temp_input_path,
-                "-vn", "-ar", "16000", "-ac", "1", "-b:a", "64k",
-                temp_output_path,
-            ]
-            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            use_path = temp_output_path
+        # 항상 mp3로 변환
+        ffmpeg_path = iio_ffmpeg.get_ffmpeg_exe()
+        
+        temp_output_path = os.path.join(temp_dir, f"conv_{unique}.mp3")
+        cmd = [
+            ffmpeg_path, 
+            "-y",
+            "-i", temp_input_path,
+            "-vn",
+            "-ar", "16000", 
+            "-ac", "1", 
+            "-b:a", "64k", 
+            "-f", "mp3",
+            temp_output_path,
+        ]
+        subprocess.run(
+            cmd, 
+            check=True, 
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        use_path = temp_output_path
  
         # 3) Whisper 호출
         with open(use_path, "rb") as audio_file:
