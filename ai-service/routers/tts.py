@@ -1,11 +1,12 @@
 from fastapi import APIRouter, HTTPException, Response, BackgroundTasks
-from schemas.tts import TTSRequest
+from schemas.tts import TTSRequest, TTSResponse
 from services import tts_service
 from config import settings
 import asyncio
 import requests
 import uuid
 import datetime
+import base64
 
 router = APIRouter()
 
@@ -99,15 +100,13 @@ def _upload_diary_tts(audio_bytes: bytes, filename: str, path: str):
         print("[TTS] S3 upload success")
         print("[TTS] audio_url =", audio_url)
 
-        # TODO
-        # 나중에 백엔드 API 생기면 여기서 전달
-        # requests.post(BACKEND_API, json={"audioUrl": audio_url})
-
     except Exception as e:
         print("[TTS] S3 upload failed:", str(e))
 
+    return audio_url
+
 # 추가한 부분: response_model 제거(mp3 byte 응답이라서)
-@router.post("/speak")
+@router.post("/speak", response_model=TTSResponse)
 async def speak(body: TTSRequest, background_tasks: BackgroundTasks):
     if not body.text or not body.text.strip():
         raise HTTPException(status_code=400, detail="text is empty")
@@ -118,19 +117,15 @@ async def speak(body: TTSRequest, background_tasks: BackgroundTasks):
         speed=body.speed,
     )
 
-    path = _resolve_path(body.purpose)
+    audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
+    audio_url = None
 
     if body.purpose == "diary":
         filename = _make_tts_filename(body.purpose)
         path = _resolve_path(body.purpose)
+        audio_url = _upload_diary_tts(audio_bytes, filename, path)
 
-        background_tasks.add_task(
-            _upload_diary_tts,
-            audio_bytes,
-            filename,
-            path,
-        )
-
-    return Response(
-        content=audio_bytes,
+    return TTSResponse(
+        audio_content=audio_b64,
+        audio_url=audio_url
     )
