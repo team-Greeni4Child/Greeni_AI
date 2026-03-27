@@ -19,4 +19,5 @@ class TTSRequest(BaseModel):
     )
 
 class TTSResponse(BaseModel):
-    audio_content: bytes = Field(..., description="MP3 binary data")
+    audio_content: str = Field(..., description="MP3 base64 data")
+    audio_url: Optional[str] = Field(..., description="Audio store URL(diary only)")
