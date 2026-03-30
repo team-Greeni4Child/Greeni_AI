@@ -173,7 +173,7 @@ async def end_session(req: DiarySessionEndRequest) -> DiarySessionEndResponse:
 
         return DiarySessionEndResponse(
             session_id=req.session_id,
-            turn_count=_turn_count,
+            turn_count=turn_count,
             status="ended",
     )
         
@@ -251,7 +251,7 @@ async def summarize(req: DiarySummarizeRequest) -> DiarySummarizeResponse:
     # 현재는 기존처럼 세션 종료 후 메모리 삭제(원하시면 여기 대신 Vector DB 저장으로 교체)
     memory.clear()
     del _memory_storage[req.session_id]
-
+  
     return DiarySummarizeResponse(
         session_id=req.session_id,
         turn_count=tc,
