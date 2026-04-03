@@ -1,4 +1,5 @@
 # routers/diary.py
+
 from fastapi import APIRouter
 
 from schemas.diary import (

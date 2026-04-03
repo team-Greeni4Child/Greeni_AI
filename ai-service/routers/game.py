@@ -1,3 +1,5 @@
+# routers/game.py
+
 from fastapi import APIRouter
 from schemas.game import (
     FiveQHintRequest, FiveQHintResponse,

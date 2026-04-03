@@ -70,13 +70,13 @@ async def transcribe_file(
             fname = os.path.basename(use_path) 
             
             transcript = client.audio.transcriptions.create(
-                model="whisper-1",
+                model="gpt-4o-transcribe",
                 file=(fname, audio_file),  
                 language="ko",
-                response_format="text",
+                response_format="json",
             )
 
-        text_out = transcript if isinstance(transcript, str) else getattr(transcript, "text", str(transcript))
+        text_out = transcript.text.strip()
         return STTResponse(text=text_out, audio_url=None)
 
     finally:
