@@ -1,3 +1,5 @@
+# routers/chat.py
+
 from fastapi import APIRouter
 from schemas.diary import DiaryChatRequest
 from schemas.roleplay import RoleplayRequest, RoleplayEndRequest
